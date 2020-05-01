@@ -64,9 +64,19 @@ object Conflict {
         val c = Parse.versionConstraint(wanted)
         val v = Version(selected)
         if (c.interval == VersionInterval.zero) {
-          if (semVer)
-            c.preferred.exists(_.items.take(2) == v.items.take(2))
-          else
+          if (semVer) {
+            c.preferred.exists { v2 =>
+              if (v2.items.take(1) != v.items.take(1)) {
+                false
+              } else {
+                v2.items.headOption match {
+                  case Some(num: Version.Numeric) if num.compareToEmpty == 0 =>
+                    v2.items.take(2) == v.items.take(2)
+                  case _ => true
+                }
+              }
+            }
+          } else
             c.preferred.contains(v)
         } else
           c.interval.contains(v)
