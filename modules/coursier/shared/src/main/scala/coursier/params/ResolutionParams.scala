@@ -2,7 +2,7 @@ package coursier.params
 
 import coursier.core.{Activation, Configuration, Module, ModuleName, Organization, Reconciliation, Version}
 import coursier.params.rule.{Rule, RuleResolution, Strict}
-import coursier.util.ModuleMatchers
+import coursier.util.{ModuleMatcher, ModuleMatchers}
 import dataclass.data
 
 @data class ResolutionParams(
@@ -74,11 +74,16 @@ import dataclass.data
 
   lazy val actualRules: Seq[(Rule, RuleResolution)] = {
 
+    val exclusions: Set[ModuleMatcher] = reconciliation.collect {
+      case (m, Reconciliation.Relaxed) =>
+        m.include
+    }.reduceOption(_ ++ _).getOrElse(Set.empty)
+
     val fromReconciliation = reconciliation.collect {
       case (m, Reconciliation.Strict) =>
-        (Strict(m.include, m.exclude, includeByDefault = m.includeByDefault), RuleResolution.Fail)
+        (Strict(m.include, m.exclude ++ exclusions, includeByDefault = m.includeByDefault), RuleResolution.Fail)
       case (m, Reconciliation.SemVer) =>
-        (Strict(m.include, m.exclude, includeByDefault = m.includeByDefault).withSemVer(true), RuleResolution.Fail)
+        (Strict(m.include, m.exclude ++ exclusions, includeByDefault = m.includeByDefault).withSemVer(true), RuleResolution.Fail)
     }
 
     rules ++ fromReconciliation
